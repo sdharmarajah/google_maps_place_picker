@@ -270,7 +270,16 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
             (p) => PredictionTile(
               prediction: p,
               onTap: (selectedPrediction) {
-                resetSearchBar();
+                // resetSearchBar();
+
+                var substring1 =
+                    p.description.substring(0, p.description.indexOf(','));
+                var substring2 = p.description
+                    .substring(substring1.length + 1, p.description.length);
+                var substring3 =
+                    substring2.substring(0, substring2.indexOf(','));
+                print('Selected Location: $substring1,$substring3');
+                controller.text = '$substring1,$substring3';
                 widget.onPicked(selectedPrediction);
               },
             ),
@@ -319,7 +328,11 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   }
 
   resetSearchBar() {
-    clearText();
+    // clearText();
+    // Added by abd99
+    provider.searchTerm = "";
+    clearOverlay();
+
     focus.unfocus();
   }
 
