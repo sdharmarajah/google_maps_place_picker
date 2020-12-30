@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_place_picker/google_maps_place_picker.dart';
 import 'package:google_maps_place_picker/providers/place_provider.dart';
 import 'package:google_maps_place_picker/providers/search_provider.dart';
 import 'package:google_maps_place_picker/src/components/prediction_tile.dart';
 import 'package:google_maps_place_picker/src/components/rounded_frame.dart';
 import 'package:google_maps_place_picker/src/controllers/autocomplete_search_controller.dart';
+import 'package:google_maps_place_picker/src/models/previous_location.dart';
+import 'package:google_maps_place_picker/src/utils/previous_search_list.dart';
 import 'package:google_maps_webservice/places.dart';
 import 'package:provider/provider.dart';
 
@@ -66,6 +69,8 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   FocusNode focus = FocusNode();
   OverlayEntry overlayEntry;
   SearchProvider provider = SearchProvider();
+  List<ListTile> previousSearchItemTiles;
+  List<PreviousLocation> locationFinalList = [];
 
   @override
   void initState() {
@@ -265,26 +270,40 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
 
   Widget _buildPredictionOverlay(List<Prediction> predictions) {
     return ListBody(
-      children: predictions
-          .map(
-            (p) => PredictionTile(
-              prediction: p,
-              onTap: (selectedPrediction) {
-                // resetSearchBar();
+      children: [
+        ...previousSearchItemTiles,
+        ...predictions
+            .map(
+              (p) => PredictionTile(
+                prediction: p,
+                onTap: (selectedPrediction) async {
+                  resetSearchBar();
 
-                var substring1 =
-                    p.description.substring(0, p.description.indexOf(','));
-                var substring2 = p.description
-                    .substring(substring1.length + 1, p.description.length);
-                var substring3 =
-                    substring2.substring(0, substring2.indexOf(','));
-                print('Selected Location: $substring1,$substring3');
-                controller.text = '$substring1,$substring3';
-                widget.onPicked(selectedPrediction);
-              },
-            ),
-          )
-          .toList(),
+                  var substring1 =
+                      p.description.substring(0, p.description.indexOf(','));
+                  var substring2 = p.description
+                      .substring(substring1.length + 1, p.description.length);
+                  var substring3 =
+                      substring2.substring(0, substring2.indexOf(','));
+                  print('Selected Location: $substring1,$substring3');
+                  controller.text = '$substring1,$substring3';
+
+                  var locationTable = PreviousSearchListProvider();
+                  await locationTable.open(path: 'location.db');
+                  await locationTable.insertLocation(
+                    PreviousLocation(
+                      location: '$substring1,$substring3',
+                      placeId: selectedPrediction.placeId,
+                    ),
+                  );
+                  // await locationTable.close();
+
+                  widget.onPicked(selectedPrediction);
+                },
+              ),
+            )
+            .toList(),
+      ],
     );
   }
 
@@ -318,8 +337,86 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
         return;
       }
 
-      _displayOverlay(_buildPredictionOverlay(response.predictions));
+      getSearchHistory();
+      // locationTable.close();
+      // locationListTemp.then((value) {
+      //   locationFinalList = value;
+      // });
+
+      await Future.delayed(Duration(milliseconds: 500), () {
+        if (locationFinalList != null) {
+          previousSearchItemTiles = List.generate(
+            locationFinalList.length,
+            (index) {
+              print('Location Item: ${locationFinalList[index].location}');
+              return ListTile(
+                leading: Icon(Icons.access_time),
+                title: Text(locationFinalList[index].location),
+                onTap: () async {
+                  resetSearchBar();
+                  controller.text = locationFinalList[index].location;
+                  provider.placeSearchingState = SearchingState.Searching;
+
+                  final PlacesDetailsResponse response =
+                      await provider.places.getDetailsByPlaceId(
+                    locationFinalList[index].placeId,
+                    sessionToken: provider.sessionToken,
+                    language: widget.autocompleteLanguage,
+                  );
+
+                  provider.selectedPlace =
+                      PickResult.fromPlaceDetailResult(response.result);
+
+                  // Prevents searching again by camera movement.
+                  provider.isAutoCompleteSearching = true;
+
+                  GoogleMapController mapController = provider.mapController;
+                  if (controller == null) return;
+
+                  await mapController.animateCamera(
+                    CameraUpdate.newCameraPosition(
+                      CameraPosition(
+                        target: LatLng(
+                            provider.selectedPlace.geometry.location.lat,
+                            provider.selectedPlace.geometry.location.lng),
+                        zoom: 16,
+                      ),
+                    ),
+                  );
+
+                  provider.placeSearchingState = SearchingState.Idle;
+                },
+              );
+            },
+          );
+        } else {
+          previousSearchItemTiles = [];
+        }
+
+        _displayOverlay(_buildPredictionOverlay(response.predictions));
+      });
     }
+  }
+
+  Future<List<PreviousLocation>> getSearchHistory() async {
+    var locationTable = PreviousSearchListProvider();
+    await locationTable.open(path: 'location.db');
+
+    var locationList = await locationTable.getPreviousSearchItems();
+    for (var item in locationList) {
+      print(item.location);
+      locationFinalList.add(item);
+    }
+    var tempList = locationFinalList.reversed.toList();
+    locationFinalList.clear();
+    locationFinalList.addAll(tempList);
+    if (locationFinalList.length > 2) {
+      locationFinalList.removeRange(2, locationFinalList.length);
+    }
+    for (var item in locationFinalList) {
+      print('LocationFinalListItem: $item.location');
+    }
+    return locationList;
   }
 
   clearText() {
