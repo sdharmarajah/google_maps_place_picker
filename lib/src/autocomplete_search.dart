@@ -91,6 +91,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
 
   @override
   void dispose() {
+    clearOverlay();
     controller.removeListener(_onSearchInputChange);
     controller.dispose();
 
@@ -102,6 +103,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
 
   @override
   Widget build(BuildContext context) {
+    buildPreviousResults(PlaceProvider.of(context, listen: false));
     return ChangeNotifierProvider.value(
       value: provider,
       child: RoundedFrame(
@@ -135,6 +137,9 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
         isDense: true,
         contentPadding: widget.contentPadding,
       ),
+      onChanged: (value) {
+        buildPreviousResults(PlaceProvider.of(context, listen: false));
+      },
     );
   }
 
@@ -196,11 +201,77 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
     });
   }
 
-  _onFocusChanged() {
+  _onFocusChanged() async {
     PlaceProvider provider = PlaceProvider.of(context, listen: false);
     provider.isSearchBarFocused = focus.hasFocus;
     provider.debounceTimer?.cancel();
     provider.placeSearchingState = SearchingState.Idle;
+    await buildPreviousResults(provider);
+  }
+
+  Future buildPreviousResults(PlaceProvider provider) async {
+    if (controller.text.isEmpty) {
+      getSearchHistory();
+
+      await Future.delayed(Duration(milliseconds: 500), () {
+        if (locationFinalList != null) {
+          previousSearchItemTiles = List.generate(
+            locationFinalList.length,
+            (index) {
+              print('Location Item: ${locationFinalList[index].location}');
+              return ListTile(
+                leading: Icon(Icons.access_time),
+                title: Text(locationFinalList[index].location),
+                onTap: () async {
+                  resetSearchBar();
+                  controller.text = locationFinalList[index].location;
+                  provider.placeSearchingState = SearchingState.Searching;
+
+                  final PlacesDetailsResponse response =
+                      await provider.places.getDetailsByPlaceId(
+                    locationFinalList[index].placeId,
+                    sessionToken: provider.sessionToken,
+                    language: widget.autocompleteLanguage,
+                  );
+
+                  provider.selectedPlace =
+                      PickResult.fromPlaceDetailResult(response.result);
+
+                  // Prevents searching again by camera movement.
+                  provider.isAutoCompleteSearching = true;
+
+                  GoogleMapController mapController = provider.mapController;
+                  if (controller == null) return;
+
+                  await mapController.animateCamera(
+                    CameraUpdate.newCameraPosition(
+                      CameraPosition(
+                        target: LatLng(
+                            provider.selectedPlace.geometry.location.lat,
+                            provider.selectedPlace.geometry.location.lng),
+                        zoom: 16,
+                      ),
+                    ),
+                  );
+
+                  provider.placeSearchingState = SearchingState.Idle;
+                },
+              );
+            },
+          );
+        } else {
+          previousSearchItemTiles = [];
+        }
+      });
+
+      print('Display previous list called');
+      print(previousSearchItemTiles.length);
+      _displayOverlay(
+        ListBody(
+          children: previousSearchItemTiles,
+        ),
+      );
+    }
   }
 
   _searchPlace(String searchTerm) {
@@ -271,7 +342,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   Widget _buildPredictionOverlay(List<Prediction> predictions) {
     return ListBody(
       children: [
-        ...previousSearchItemTiles,
+        // ...previousSearchItemTiles,
         ...predictions
             .map(
               (p) => PredictionTile(
@@ -337,64 +408,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
         return;
       }
 
-      getSearchHistory();
-      // locationTable.close();
-      // locationListTemp.then((value) {
-      //   locationFinalList = value;
-      // });
-
-      await Future.delayed(Duration(milliseconds: 500), () {
-        if (locationFinalList != null) {
-          previousSearchItemTiles = List.generate(
-            locationFinalList.length,
-            (index) {
-              print('Location Item: ${locationFinalList[index].location}');
-              return ListTile(
-                leading: Icon(Icons.access_time),
-                title: Text(locationFinalList[index].location),
-                onTap: () async {
-                  resetSearchBar();
-                  controller.text = locationFinalList[index].location;
-                  provider.placeSearchingState = SearchingState.Searching;
-
-                  final PlacesDetailsResponse response =
-                      await provider.places.getDetailsByPlaceId(
-                    locationFinalList[index].placeId,
-                    sessionToken: provider.sessionToken,
-                    language: widget.autocompleteLanguage,
-                  );
-
-                  provider.selectedPlace =
-                      PickResult.fromPlaceDetailResult(response.result);
-
-                  // Prevents searching again by camera movement.
-                  provider.isAutoCompleteSearching = true;
-
-                  GoogleMapController mapController = provider.mapController;
-                  if (controller == null) return;
-
-                  await mapController.animateCamera(
-                    CameraUpdate.newCameraPosition(
-                      CameraPosition(
-                        target: LatLng(
-                            provider.selectedPlace.geometry.location.lat,
-                            provider.selectedPlace.geometry.location.lng),
-                        zoom: 16,
-                      ),
-                    ),
-                  );
-
-                  provider.placeSearchingState = SearchingState.Idle;
-                },
-              );
-            },
-          );
-        } else {
-          previousSearchItemTiles = [];
-        }
-
-        _displayOverlay(_buildPredictionOverlay(response.predictions));
-      });
+      _displayOverlay(_buildPredictionOverlay(response.predictions));
     }
   }
 
