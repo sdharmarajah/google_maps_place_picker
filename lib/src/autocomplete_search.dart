@@ -210,7 +210,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   }
 
   Future buildPreviousResults(PlaceProvider provider) async {
-    if (controller.text.isEmpty) {
+    if (controller.text.isEmpty || !focus.hasFocus) {
       getSearchHistory();
 
       await Future.delayed(Duration(milliseconds: 500), () {
@@ -443,7 +443,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
     // Added by abd99
     provider.searchTerm = "";
     clearOverlay();
-
+    buildPreviousResults(PlaceProvider.of(context, listen: false));
     focus.unfocus();
   }
 
