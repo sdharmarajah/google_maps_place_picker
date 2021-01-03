@@ -221,7 +221,14 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
               print('Location Item: ${locationFinalList[index].location}');
               return ListTile(
                 leading: Icon(Icons.access_time),
-                title: Text(locationFinalList[index].location),
+                title: Text(
+                  locationFinalList[index].location,
+                  style: Theme.of(context).textTheme.caption.copyWith(
+                        fontWeight: FontWeight.w300,
+                        fontSize:
+                            Theme.of(context).textTheme.bodyText1.fontSize,
+                      ),
+                ),
                 onTap: () async {
                   resetSearchBar();
                   controller.text = locationFinalList[index].location;
