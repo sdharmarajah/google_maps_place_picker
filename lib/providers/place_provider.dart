@@ -38,8 +38,8 @@ class PlaceProvider extends ChangeNotifier {
 
   Future<void> updateCurrentLocation(bool forceAndroidLocationManager) async {
     try {
-      await Permission.location.request();
-      if (await Permission.location.request().isGranted) {
+      await Permission.locationWhenInUse.request();
+      if (await Permission.locationWhenInUse.request().isGranted) {
         currentPosition = await getCurrentPosition(
             desiredAccuracy: desiredAccuracy ?? LocationAccuracy.high);
       } else {
