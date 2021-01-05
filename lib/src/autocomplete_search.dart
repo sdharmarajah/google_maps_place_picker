@@ -72,6 +72,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   List<ListTile> previousSearchItemTiles;
   List<PreviousLocation> locationFinalList = [];
   ThemeData theme;
+  PlaceProvider placeProvider;
 
   @override
   void initState() {
@@ -88,6 +89,13 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
     focus.addListener(_onFocusChanged);
 
     widget.searchBarController.attach(this);
+    callPreviousItemFirstTime();
+  }
+
+  void callPreviousItemFirstTime() async {
+    Future.delayed(Duration(milliseconds: 1500), () {
+      buildPreviousResults(placeProvider);
+    });
   }
 
   @override
@@ -105,6 +113,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   @override
   Widget build(BuildContext context) {
     theme = Theme.of(context);
+    placeProvider = Provider.of<PlaceProvider>(context, listen: false);
     return ChangeNotifierProvider.value(
       value: provider,
       child: RoundedFrame(
@@ -122,11 +131,6 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
             SizedBox(width: 10),
             Expanded(child: _buildSearchTextField()),
             _buildTextClearIcon(),
-            FutureBuilder(
-              future: buildPreviousResults(
-                  PlaceProvider.of(context, listen: false)),
-              builder: (context, snapshot) => Container(),
-            )
           ],
         ),
       ),
@@ -261,7 +265,7 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
                         target: LatLng(
                             provider.selectedPlace.geometry.location.lat,
                             provider.selectedPlace.geometry.location.lng),
-                        zoom: 16,
+                        zoom: 18,
                       ),
                     ),
                   );
@@ -450,12 +454,11 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
     controller.clear();
   }
 
-  resetSearchBar() async {
+  resetSearchBar() {
     // clearText();
     // Added by abd99
     provider.searchTerm = "";
     clearOverlay();
-    await buildPreviousResults(PlaceProvider.of(context, listen: false));
     focus.unfocus();
   }
 
