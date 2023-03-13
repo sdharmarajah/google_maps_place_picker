@@ -26,7 +26,7 @@ class PredictionTile extends StatelessWidget {
 
   List<TextSpan> _buildPredictionText(BuildContext context) {
     final List<TextSpan> result = List<TextSpan>();
-    final textColor = Theme.of(context).textTheme.title.color;
+    final textColor = Theme.of(context).textTheme;
 
     if (prediction.matchedSubstrings.length > 0) {
       MatchedSubstring matchedSubString = prediction.matchedSubstrings[0];
@@ -36,7 +36,7 @@ class PredictionTile extends StatelessWidget {
           TextSpan(
             text: prediction.description.substring(0, matchedSubString.offset),
             style: TextStyle(
-                color: textColor, fontSize: 16, fontWeight: FontWeight.w300),
+                color: Colors.black, fontSize: 16, fontWeight: FontWeight.w300),
           ),
         );
       }
@@ -47,7 +47,7 @@ class PredictionTile extends StatelessWidget {
           text: prediction.description.substring(matchedSubString.offset,
               matchedSubString.offset + matchedSubString.length),
           style: TextStyle(
-              color: textColor, fontSize: 16, fontWeight: FontWeight.w500),
+              color: Colors.black, fontSize: 16, fontWeight: FontWeight.w500),
         ),
       );
 
@@ -59,7 +59,7 @@ class PredictionTile extends StatelessWidget {
             text: prediction.description
                 .substring(matchedSubString.offset + matchedSubString.length),
             style: TextStyle(
-                color: textColor, fontSize: 16, fontWeight: FontWeight.w300),
+                color: Colors.black, fontSize: 16, fontWeight: FontWeight.w300),
           ),
         );
       }
@@ -69,7 +69,7 @@ class PredictionTile extends StatelessWidget {
         TextSpan(
           text: prediction.description,
           style: TextStyle(
-              color: textColor, fontSize: 16, fontWeight: FontWeight.w300),
+              color: Colors.black, fontSize: 16, fontWeight: FontWeight.w300),
         ),
       );
     }
